@@ -63,8 +63,7 @@ public class DemoRestController {
 			logger.info("There was an exception -->" + data.toString());
 			throw new Exception();//12
 		} else {
-			logger.info("Received -->" + data.toString());
-			
+			logger.info("Received -->" + data.toString());		
 			consumer.commitAsync();
 			//ack.acknowledge();
 		}
