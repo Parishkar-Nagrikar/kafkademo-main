@@ -18,6 +18,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
+import org.springframework.retry.policy.SimpleRetryPolicy;
+import org.springframework.retry.support.RetryTemplate;
 
 @Configuration
 @EnableKafka
@@ -26,12 +28,26 @@ public class Config {
 	@Bean
 	ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
 		ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
-		factory.getContainerProperties().setAckMode(AckMode.MANUAL);
-		//factory.getContainerProperties().setAckMode(AckMode.MANUAL_IMMEDIATE);
+		
 		factory.setConsumerFactory(consumerFactory());
 		//factory.getContainerProperties().setTransactionManager(kafkaTransactionManager());
-	
+		factory.setRetryTemplate(retryTemplate());
+        //***********//
+		//factory.getContainerProperties().setAckMode(AckMode.MANUAL);
+		factory.getContainerProperties().setAckMode(AckMode.MANUAL_IMMEDIATE);
+		factory.setErrorHandler(((exception, data) -> {           
+			/* here you can do you custom handling, I am just logging it same as default Error handler doesIf you just want to log. 
+			 * you need not configure the error handler here.
+			 *  The default handler does it for you.Generally, you will persist the failed records to DB for tracking the failed records.  */
+				System.out.println("Error in process with Exception {} and the record is {}"+ exception+ data);      
+			}));
 		return factory;
+	}
+	
+
+	@Bean
+	public Listener listener() {
+		return new Listener();
 	}
 
 	@Bean
@@ -64,11 +80,19 @@ public class Config {
 		return props;
 
 	}
-
-	@Bean
-	public Listener listener() {
-		return new Listener();
-	}
+	
+	private RetryTemplate retryTemplate() {
+        RetryTemplate retryTemplate = new RetryTemplate();
+      /* here retry policy is used to set the number of attempts to retry and what exceptions you wanted to try and what you don't want to retry.*/
+         retryTemplate.setRetryPolicy(getSimpleRetryPolicy());
+        return retryTemplate;
+    }
+	//***********//
+    private SimpleRetryPolicy getSimpleRetryPolicy() {
+        Map<Class<? extends Throwable>, Boolean> exceptionMap = new HashMap<>();// the boolean value in the map determines whether exception should be retried exception.
+        exceptionMap.put(Exception.class, true);
+        return new SimpleRetryPolicy(3,exceptionMap,true);
+    }
 
 	@Bean
 	public ProducerFactory<String, String> producerFactory() {

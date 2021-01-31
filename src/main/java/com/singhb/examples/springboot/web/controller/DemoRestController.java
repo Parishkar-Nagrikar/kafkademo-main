@@ -65,7 +65,7 @@ public class DemoRestController {
 		} else {
 			logger.info("Received -->" + data.toString());		
 			consumer.commitAsync();
-			//ack.acknowledge();
+			ack.acknowledge();
 		}
 	}
 }
