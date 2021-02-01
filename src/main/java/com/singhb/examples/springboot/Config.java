@@ -54,9 +54,6 @@ public class Config {
 		return factory;
 	}
 
-	
-    
-
     public RetryTemplate kafkaRetry() {
         RetryTemplate retryTemplate = new RetryTemplate();
         FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
