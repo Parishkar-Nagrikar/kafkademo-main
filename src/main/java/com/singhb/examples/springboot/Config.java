@@ -2,11 +2,14 @@ package com.singhb.examples.springboot;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -18,6 +21,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 
@@ -31,19 +35,38 @@ public class Config {
 		
 		factory.setConsumerFactory(consumerFactory());
 		//factory.getContainerProperties().setTransactionManager(kafkaTransactionManager());
-		factory.setRetryTemplate(retryTemplate());
-        //***********//
+		factory.setRetryTemplate(kafkaRetry());
+        //***********/
 		//factory.getContainerProperties().setAckMode(AckMode.MANUAL);
-		factory.getContainerProperties().setAckMode(AckMode.MANUAL_IMMEDIATE);
-		factory.setErrorHandler(((exception, data) -> {           
-			/* here you can do you custom handling, I am just logging it same as default Error handler doesIf you just want to log. 
-			 * you need not configure the error handler here.
-			 *  The default handler does it for you.Generally, you will persist the failed records to DB for tracking the failed records.  */
-				System.out.println("Error in process with Exception {} and the record is {}"+ exception+ data);      
-			}));
+//		factory.getContainerProperties().setAckMode(AckMode.MANUAL_IMMEDIATE);
+//		factory.setErrorHandler(((exception, data) -> {           
+//			/* here you can do you custom handling, I am just logging it same as default Error handler doesIf you just want to log. 
+//			 * you need not configure the error handler here.
+//			 *  The default handler does it for you.Generally, you will persist the failed records to DB for tracking the failed records.  */
+//				System.out.println("Error in process with Exception {} and the record is {}"+ exception+ data);      
+//			}));
+		 factory.setRetryTemplate(kafkaRetry());
+	        factory.setRecoveryCallback(retryContext -> {
+	            ConsumerRecord consumerRecord = (ConsumerRecord) retryContext.getAttribute("record");
+	            System.out.println("Recovery is called for message {} "+ consumerRecord.value());
+	            return Optional.empty();
+	        });
 		return factory;
 	}
+
 	
+    
+
+    public RetryTemplate kafkaRetry() {
+        RetryTemplate retryTemplate = new RetryTemplate();
+        FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
+        fixedBackOffPolicy.setBackOffPeriod(3000);
+        retryTemplate.setBackOffPolicy(fixedBackOffPolicy);
+        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
+        retryPolicy.setMaxAttempts(3);
+        retryTemplate.setRetryPolicy(retryPolicy);
+        return retryTemplate;
+    }
 
 	@Bean
 	public Listener listener() {
@@ -94,6 +117,7 @@ public class Config {
         return new SimpleRetryPolicy(3,exceptionMap,true);
     }
 
+/*-------------------------producer---------------------------------*/
 	@Bean
 	public ProducerFactory<String, String> producerFactory() {
 		return new DefaultKafkaProducerFactory<>(producerConfigs());
@@ -117,7 +141,7 @@ public class Config {
 		props.put(ProducerConfig.ACKS_CONFIG, "all");
 		props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
 		//props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "PRODI1");
-		
+				
 		props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 		props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 		return props;

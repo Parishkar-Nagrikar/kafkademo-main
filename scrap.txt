@@ -1,0 +1,69 @@
+
+	@Bean
+	ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+		ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+		
+		factory.setConsumerFactory(consumerFactory());
+		//factory.getContainerProperties().setTransactionManager(kafkaTransactionManager());
+		factory.setRetryTemplate(retryTemplate());
+        //***********/
+		//factory.getContainerProperties().setAckMode(AckMode.MANUAL);
+		factory.getContainerProperties().setAckMode(AckMode.MANUAL_IMMEDIATE);
+		factory.setErrorHandler(((exception, data) -> {           
+			/* here you can do you custom handling, I am just logging it same as default Error handler doesIf you just want to log. 
+			 * you need not configure the error handler here.
+			 *  The default handler does it for you.Generally, you will persist the failed records to DB for tracking the failed records.  */
+				System.out.println("Error in process with Exception {} and the record is {}"+ exception+ data);      
+			}));
+		return factory;
+	}
+	
+
+	@Bean
+	public Listener listener() {
+		return new Listener();
+	}
+
+	@Bean
+	public KafkaTransactionManager< Integer, String> kafkaTransactionManager(){
+		return new KafkaTransactionManager<Integer, String>(producerFactoryMock());
+	}
+	
+  
+	@Bean
+	public ConsumerFactory<String, String> consumerFactory() {
+		return new DefaultKafkaConsumerFactory<>(consumerConfigs());
+	}
+
+	@Bean
+	public Map<String, Object> consumerConfigs() {
+		Map<String, Object> props = new HashMap<>();
+		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+		props.put(ConsumerConfig.GROUP_ID_CONFIG, "tstgropid");
+		
+		props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "15000");
+		props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "6000");
+		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+		
+		props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+		//props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+		props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);		
+		
+		return props;
+
+	}
+	
+	private RetryTemplate retryTemplate() {
+        RetryTemplate retryTemplate = new RetryTemplate();
+      /* here retry policy is used to set the number of attempts to retry and what exceptions you wanted to try and what you don't want to retry.*/
+         retryTemplate.setRetryPolicy(getSimpleRetryPolicy());
+        return retryTemplate;
+    }
+	//***********//
+    private SimpleRetryPolicy getSimpleRetryPolicy() {
+        Map<Class<? extends Throwable>, Boolean> exceptionMap = new HashMap<>();// the boolean value in the map determines whether exception should be retried exception.
+        exceptionMap.put(Exception.class, true);
+        return new SimpleRetryPolicy(3,exceptionMap,true);
+    }

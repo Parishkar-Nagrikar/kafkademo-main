@@ -12,10 +12,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
 
+
 @SpringBootApplication(exclude = KafkaAutoConfiguration.class)
+@EnableRetry
 public class DemoApplication implements CommandLineRunner {
 
 	public static Logger logger = LoggerFactory.getLogger(DemoApplication.class);

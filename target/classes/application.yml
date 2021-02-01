@@ -3,3 +3,11 @@ spring:
       name: demoservice
 server:
    port: 9093
+   
+   kafka:
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        isolation:
+          level: read_committed

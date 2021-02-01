@@ -2,6 +2,7 @@ package com.singhb.examples.springboot.web.controller;
 
 import javax.annotation.PostConstruct;
 
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.slf4j.Logger;
@@ -46,24 +47,30 @@ public class DemoRestController {
 		System.out.println(" producer msg sent pass!!!" + message);
 	}
 
+	private int count=1;
 //read it from last committed offset
 //consumer
 	// , Acknowledgment ack
 	@KafkaListener(topics = "myTopic", containerFactory = "kafkaListenerContainerFactory")
-	public void listen(KafkaConsumer<String,String> consumer,ConsumerRecord<String,String> cr, String data , 
+	public void listen(Consumer<String,String> consumer,ConsumerRecord<String,String> cr, String data , 
 			@Header(KafkaHeaders.OFFSET) int offset,Acknowledgment ack) 
 			throws Exception {
 
-			System.out.println(" consumer called!!! message : " + data);
-			System.out.println(" consumer called!!! consumer: " + consumer);
-			System.out.println(" consumer called!!! ConsumerRecord: " + cr);	
-			System.out.println(" consumer called!!! offset: " + offset);	//12
+		System.out.println(" consumer called!!! count : " + count);
+		System.out.println(" consumer called!!! message : " + data);
+		System.out.println(" consumer called!!! consumer: " + consumer);
+		System.out.println(" consumer called!!! ConsumerRecord: " + cr);	
+		System.out.println(" consumer called!!! offset: " + offset);	//12
 		
 		if (data.equals("foo31")) {
+			System.out.println(" inside if count : " + count);
 			logger.info("There was an exception -->" + data.toString());
+			count++;
 			throw new Exception();//12
 		} else {
-			logger.info("Received -->" + data.toString());		
+			System.out.println(" inside else count : " + count);
+			logger.info("Received -->" + data.toString());	
+			count++;
 			consumer.commitAsync();
 			ack.acknowledge();
 		}
